@@ -1,4 +1,27 @@
-export default function Home() {
+import { createClient } from "@/lib/supabase/server";
+
+export default async function Home() {
+  const supabase = await createClient();
+
+  const { data: clusters, error } = await supabase
+    .from("clusters")
+    .select(`
+      id,
+      name,
+      slug,
+      display_order,
+      communities!inner (
+        slug
+      )
+    `)
+    .eq("communities.slug", "damac-hills-2")
+    .eq("published", true)
+    .order("display_order", { ascending: true });
+
+  if (error) {
+    console.error("Clusters loading error:", error);
+  }
+
   return (
     <main className="min-h-screen bg-[#f5f2eb] text-[#171717]">
       <header className="flex items-center justify-between px-6 py-5 md:px-10">
@@ -6,6 +29,7 @@ export default function Home() {
           <p className="text-xs font-medium uppercase tracking-[0.3em] text-neutral-500">
             Find It With Brian
           </p>
+
           <h1 className="text-lg font-semibold">
             DAMAC Hills 2 Property Specialist
           </h1>
@@ -34,9 +58,12 @@ export default function Home() {
           </p>
 
           <div className="mt-10 flex flex-wrap gap-4">
-            <button className="rounded-full bg-black px-7 py-4 text-sm font-medium text-white">
+            <a
+              href="#clusters"
+              className="rounded-full bg-black px-7 py-4 text-sm font-medium text-white"
+            >
               Explore DAMAC Hills 2
-            </button>
+            </a>
 
             <button className="rounded-full border border-neutral-300 bg-white px-7 py-4 text-sm font-medium">
               View Properties
@@ -49,10 +76,11 @@ export default function Home() {
         <div className="grid gap-6 md:grid-cols-3">
           <div className="rounded-3xl bg-white p-7">
             <p className="text-sm text-neutral-500">Explore</p>
-            <h3 className="mt-3 text-2xl font-semibold">29 Clusters</h3>
+            <h3 className="mt-3 text-2xl font-semibold">
+              {clusters?.length ?? 0} Clusters
+            </h3>
             <p className="mt-3 text-neutral-600">
-              Discover Vardon, Zinnia, Basswood, Albizia and every major
-              DAMAC Hills 2 cluster.
+              Explore the established communities that make up DAMAC Hills 2.
             </p>
           </div>
 
@@ -74,6 +102,60 @@ export default function Home() {
             </p>
           </div>
         </div>
+      </section>
+
+      <section
+        id="clusters"
+        className="border-t border-neutral-200 px-6 py-20 md:px-10 lg:px-16"
+      >
+        <div className="mb-12 max-w-3xl">
+          <p className="text-sm font-medium uppercase tracking-[0.25em] text-neutral-500">
+            Explore the community
+          </p>
+
+          <h2 className="mt-4 text-4xl font-semibold tracking-tight md:text-5xl">
+            DAMAC Hills 2 clusters
+          </h2>
+
+          <p className="mt-5 text-lg leading-8 text-neutral-600">
+            Start with a cluster and explore its homes, layouts, location,
+            amenities and local insight.
+          </p>
+        </div>
+
+        {error ? (
+          <div className="rounded-3xl border border-red-200 bg-red-50 p-6 text-red-800">
+            We could not load the clusters from Supabase.
+          </div>
+        ) : (
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+            {clusters?.map((cluster) => (
+              <a
+                key={cluster.id}
+                href={`/damac-hills-2/clusters/${cluster.slug}`}
+                className="group flex min-h-48 flex-col justify-between rounded-3xl bg-white p-6 transition hover:-translate-y-1"
+              >
+                <div className="flex items-start justify-between">
+                  <span className="text-xs font-medium uppercase tracking-[0.2em] text-neutral-400">
+                    Cluster
+                  </span>
+
+                  <span className="text-neutral-400 transition group-hover:translate-x-1">
+                    →
+                  </span>
+                </div>
+
+                <div>
+                  <h3 className="text-2xl font-semibold">{cluster.name}</h3>
+
+                  <p className="mt-2 text-sm text-neutral-500">
+                    Explore properties, layouts and local insight.
+                  </p>
+                </div>
+              </a>
+            ))}
+          </div>
+        )}
       </section>
     </main>
   );
