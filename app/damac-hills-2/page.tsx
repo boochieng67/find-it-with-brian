@@ -170,48 +170,82 @@ export default async function DamacHills2Page() {
                   <Link
                     key={cluster.id}
                     href={`/damac-hills-2/clusters/${cluster.slug}`}
+                    aria-label={`Explore ${cluster.name}`}
                     className="group absolute z-30 -translate-x-1/2 -translate-y-1/2"
                     style={{
                       left: `${cluster.map_x}%`,
                       top: `${cluster.map_y}%`,
                     }}
                   >
-                    <div className="relative flex items-center justify-center">
-                      {/* PULSE */}
-                      <span className="absolute h-7 w-7 rounded-full bg-black/15 opacity-0 transition duration-300 group-hover:scale-150 group-hover:opacity-100" />
+                    <div className="relative flex h-10 w-10 items-center justify-center">
+                      {/* HOVER / TAP HALO */}
+                      <span className="absolute h-9 w-9 rounded-full bg-black/10 transition duration-300 group-hover:scale-125 group-hover:bg-black/20 group-focus-visible:scale-125" />
 
-                      {/* PIN */}
-                      <span className="relative h-3.5 w-3.5 rounded-full border-[3px] border-white bg-black shadow-lg transition duration-300 group-hover:scale-125" />
+                      {/* MARKER */}
+                      <span className="relative flex h-5 w-5 items-center justify-center rounded-full border-[3px] border-white bg-black shadow-xl transition duration-300 group-hover:scale-110 group-focus-visible:scale-110">
+                        <span className="h-1.5 w-1.5 rounded-full bg-white" />
+                      </span>
 
-                      {/* HOVER CARD */}
-                      <div className="pointer-events-none absolute left-1/2 top-6 z-50 hidden min-w-40 -translate-x-1/2 rounded-2xl bg-black px-4 py-3 text-white shadow-2xl group-hover:block">
-                        <p className="text-sm font-semibold">
-                          {cluster.name}
-                        </p>
+                      {/* INFO CARD */}
+                      <div className="pointer-events-none absolute bottom-full left-1/2 z-50 mb-3 hidden w-[220px] -translate-x-1/2 rounded-2xl bg-black/95 p-4 text-white shadow-2xl backdrop-blur-md group-hover:block group-focus-visible:block md:w-[240px]">
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="min-w-0">
+                            <p className="truncate text-sm font-semibold">
+                              {cluster.name}
+                            </p>
 
-                        <p className="mt-1 text-[11px] text-white/55">
-                          {cluster.brian_score
-                            ? `Brian Score ${cluster.brian_score}/10`
-                            : "Explore cluster"}
-                        </p>
+                            <p className="mt-1 text-[11px] text-white/50">
+                              DAMAC Hills 2
+                            </p>
+                          </div>
 
-                        <p className="mt-2 text-[10px] font-medium uppercase tracking-[0.16em] text-white/40">
-                          Open cluster →
-                        </p>
+                          {cluster.brian_score && (
+                            <div className="shrink-0 rounded-full bg-white px-2.5 py-1 text-[10px] font-semibold text-black">
+                              {cluster.brian_score}/10
+                            </div>
+                          )}
+                        </div>
+
+                        {cluster.short_description && (
+                          <p className="mt-3 line-clamp-2 text-xs leading-5 text-white/65">
+                            {cluster.short_description}
+                          </p>
+                        )}
+
+                        <div className="mt-4 flex items-center justify-between border-t border-white/10 pt-3">
+                          <span className="text-[10px] font-medium uppercase tracking-[0.18em] text-white/40">
+                            Explore cluster
+                          </span>
+
+                          <span className="text-sm text-white/70">
+                            →
+                          </span>
+                        </div>
+
+                        {/* CARD POINTER */}
+                        <span className="absolute left-1/2 top-full h-3 w-3 -translate-x-1/2 -translate-y-1/2 rotate-45 bg-black/95" />
                       </div>
                     </div>
                   </Link>
                 ))}
 
                 {/* MAP INSTRUCTION */}
-                <div className="absolute bottom-5 left-5 z-20 rounded-2xl bg-black/85 px-4 py-3 text-white shadow-lg backdrop-blur md:bottom-7 md:left-7">
-                  <p className="text-xs font-medium">
-                    Select a cluster
-                  </p>
+                <div className="pointer-events-none absolute bottom-5 left-5 z-20 rounded-2xl border border-white/10 bg-black/80 px-4 py-3 text-white shadow-xl backdrop-blur-md md:bottom-7 md:left-7">
+                  <div className="flex items-center gap-3">
+                    <span className="flex h-7 w-7 items-center justify-center rounded-full border border-white/20 bg-white/10">
+                      <span className="h-2.5 w-2.5 rounded-full border-2 border-white bg-black" />
+                    </span>
 
-                  <p className="mt-1 text-[11px] text-white/55">
-                    Hover or click a marker to explore
-                  </p>
+                    <div>
+                      <p className="text-xs font-medium">
+                        Explore the clusters
+                      </p>
+
+                      <p className="mt-0.5 text-[10px] text-white/50">
+                        Hover or tap a marker
+                      </p>
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
