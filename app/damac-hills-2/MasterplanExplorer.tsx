@@ -17,6 +17,8 @@ type Cluster = {
   short_description: string | null;
 };
 
+type MapMode = "clusters" | "amenities" | "properties";
+
 type Props = {
   imageUrl: string;
   clusters: Cluster[];
@@ -35,6 +37,7 @@ export default function MasterplanExplorer({
   });
 
   const [dragging, setDragging] = useState(false);
+  const [mode, setMode] = useState<MapMode>("clusters");
 
   const dragStart = useRef({
     pointerX: 0,
@@ -85,12 +88,12 @@ export default function MasterplanExplorer({
 
     const target = event.target as HTMLElement;
 
-   if (
-  target.closest("[data-map-marker]") ||
-  target.closest("[data-map-control]")
-) {
-  return;
-}
+    if (
+      target.closest("[data-map-marker]") ||
+      target.closest("[data-map-control]")
+    ) {
+      return;
+    }
 
     event.currentTarget.setPointerCapture(
       event.pointerId
@@ -145,8 +148,69 @@ export default function MasterplanExplorer({
     }
   }
 
+  function changeMode(nextMode: MapMode) {
+    setMode(nextMode);
+  }
+
+  const modeLabel =
+    mode === "clusters"
+      ? "Clusters"
+      : mode === "amenities"
+        ? "Amenities"
+        : "Properties";
+
+  const modeDescription =
+    mode === "clusters"
+      ? "Hover a marker or zoom in"
+      : mode === "amenities"
+        ? "Amenity markers will be connected next"
+        : "Property markers will connect in Task 15";
+
   return (
     <div className="overflow-hidden rounded-[2rem] bg-white p-3 shadow-sm md:p-5">
+      {/* MODE SWITCHER */}
+      <div
+        data-map-control
+        className="mb-3 flex flex-wrap items-center justify-between gap-3"
+      >
+        <div>
+          <p className="text-xs font-medium uppercase tracking-[0.2em] text-neutral-400">
+            Masterplan View
+          </p>
+
+          <p className="mt-1 text-sm font-medium text-neutral-700">
+            {modeLabel}
+          </p>
+        </div>
+
+        <div className="flex rounded-full bg-neutral-100 p-1">
+          {(
+            [
+              ["clusters", "Clusters"],
+              ["amenities", "Amenities"],
+              ["properties", "Properties"],
+            ] as const
+          ).map(([value, label]) => {
+            const active = mode === value;
+
+            return (
+              <button
+                key={value}
+                type="button"
+                onClick={() => changeMode(value)}
+                className={`rounded-full px-4 py-2 text-xs font-semibold transition ${
+                  active
+                    ? "bg-black text-white shadow-sm"
+                    : "text-neutral-500 hover:text-black"
+                }`}
+              >
+                {label}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
       <div
         ref={viewportRef}
         onPointerDown={handlePointerDown}
@@ -182,65 +246,66 @@ export default function MasterplanExplorer({
           <div className="pointer-events-none absolute inset-x-0 top-0 h-24 bg-gradient-to-b from-black/15 to-transparent" />
 
           {/* CLUSTER MARKERS */}
-          {clusters.map((cluster) => (
-            <Link
-              key={cluster.id}
-              data-map-marker
-              href={`/damac-hills-2/clusters/${cluster.slug}`}
-              aria-label={`Explore ${cluster.name}`}
-              className="group absolute z-30 -translate-x-1/2 -translate-y-1/2"
-              style={{
-                left: `${cluster.map_x}%`,
-                top: `${cluster.map_y}%`,
-              }}
-            >
-              <div className="relative flex h-10 w-10 items-center justify-center">
-                <span className="absolute h-9 w-9 rounded-full bg-black/10 transition duration-300 group-hover:scale-125 group-hover:bg-black/20 group-focus-visible:scale-125" />
+          {mode === "clusters" &&
+            clusters.map((cluster) => (
+              <Link
+                key={cluster.id}
+                data-map-marker
+                href={`/damac-hills-2/clusters/${cluster.slug}`}
+                aria-label={`Explore ${cluster.name}`}
+                className="group absolute z-30 -translate-x-1/2 -translate-y-1/2"
+                style={{
+                  left: `${cluster.map_x}%`,
+                  top: `${cluster.map_y}%`,
+                }}
+              >
+                <div className="relative flex h-10 w-10 items-center justify-center">
+                  <span className="absolute h-9 w-9 rounded-full bg-black/10 transition duration-300 group-hover:scale-125 group-hover:bg-black/20 group-focus-visible:scale-125" />
 
-                <span className="relative flex h-5 w-5 items-center justify-center rounded-full border-[3px] border-white bg-black shadow-xl transition duration-300 group-hover:scale-110 group-focus-visible:scale-110">
-                  <span className="h-1.5 w-1.5 rounded-full bg-white" />
-                </span>
+                  <span className="relative flex h-5 w-5 items-center justify-center rounded-full border-[3px] border-white bg-black shadow-xl transition duration-300 group-hover:scale-110 group-focus-visible:scale-110">
+                    <span className="h-1.5 w-1.5 rounded-full bg-white" />
+                  </span>
 
-                <div className="pointer-events-none absolute bottom-full left-1/2 z-50 mb-3 hidden w-[220px] -translate-x-1/2 rounded-2xl bg-black/95 p-4 text-white shadow-2xl backdrop-blur-md group-hover:block group-focus-visible:block md:w-[240px]">
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="min-w-0">
-                      <p className="truncate text-sm font-semibold">
-                        {cluster.name}
-                      </p>
+                  <div className="pointer-events-none absolute bottom-full left-1/2 z-50 mb-3 hidden w-[220px] -translate-x-1/2 rounded-2xl bg-black/95 p-4 text-white shadow-2xl backdrop-blur-md group-hover:block group-focus-visible:block md:w-[240px]">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <p className="truncate text-sm font-semibold">
+                          {cluster.name}
+                        </p>
 
-                      <p className="mt-1 text-[11px] text-white/50">
-                        DAMAC Hills 2
-                      </p>
+                        <p className="mt-1 text-[11px] text-white/50">
+                          DAMAC Hills 2
+                        </p>
+                      </div>
+
+                      {cluster.brian_score && (
+                        <div className="shrink-0 rounded-full bg-white px-2.5 py-1 text-[10px] font-semibold text-black">
+                          {cluster.brian_score}/10
+                        </div>
+                      )}
                     </div>
 
-                    {cluster.brian_score && (
-                      <div className="shrink-0 rounded-full bg-white px-2.5 py-1 text-[10px] font-semibold text-black">
-                        {cluster.brian_score}/10
-                      </div>
+                    {cluster.short_description && (
+                      <p className="mt-3 line-clamp-2 text-xs leading-5 text-white/65">
+                        {cluster.short_description}
+                      </p>
                     )}
+
+                    <div className="mt-4 flex items-center justify-between border-t border-white/10 pt-3">
+                      <span className="text-[10px] font-medium uppercase tracking-[0.18em] text-white/40">
+                        Explore cluster
+                      </span>
+
+                      <span className="text-sm text-white/70">
+                        →
+                      </span>
+                    </div>
+
+                    <span className="absolute left-1/2 top-full h-3 w-3 -translate-x-1/2 -translate-y-1/2 rotate-45 bg-black/95" />
                   </div>
-
-                  {cluster.short_description && (
-                    <p className="mt-3 line-clamp-2 text-xs leading-5 text-white/65">
-                      {cluster.short_description}
-                    </p>
-                  )}
-
-                  <div className="mt-4 flex items-center justify-between border-t border-white/10 pt-3">
-                    <span className="text-[10px] font-medium uppercase tracking-[0.18em] text-white/40">
-                      Explore cluster
-                    </span>
-
-                    <span className="text-sm text-white/70">
-                      →
-                    </span>
-                  </div>
-
-                  <span className="absolute left-1/2 top-full h-3 w-3 -translate-x-1/2 -translate-y-1/2 rotate-45 bg-black/95" />
                 </div>
-              </div>
-            </Link>
-          ))}
+              </Link>
+            ))}
         </div>
 
         {/* BRAND */}
@@ -252,57 +317,84 @@ export default function MasterplanExplorer({
           <p className="mt-1 text-sm font-semibold md:text-base">
             DAMAC Hills 2
           </p>
+
+          <p className="mt-1 text-[10px] text-white/45">
+            {modeLabel}
+          </p>
         </div>
 
+        {/* MODE EMPTY STATE */}
+        {mode !== "clusters" && (
+          <div className="pointer-events-none absolute inset-0 z-30 flex items-end justify-center pb-20">
+            <div className="mx-5 max-w-sm rounded-2xl border border-white/15 bg-black/75 px-5 py-4 text-center text-white shadow-2xl backdrop-blur-md">
+              <p className="text-sm font-semibold">
+                {mode === "amenities"
+                  ? "Amenities mode is ready"
+                  : "Properties mode is ready"}
+              </p>
+
+              <p className="mt-1 text-xs leading-5 text-white/55">
+                {mode === "amenities"
+                  ? "Next we will load real DAMAC Hills 2 amenities from Supabase and position them on this masterplan."
+                  : "Property markers will plug into this view when we begin the Property Listing System in Task 15."}
+              </p>
+            </div>
+          </div>
+        )}
+
         {/* ZOOM CONTROLS */}
-<div
-  data-map-control
-  onPointerDown={(event) => event.stopPropagation()}
-  onPointerMove={(event) => event.stopPropagation()}
-  className="absolute right-5 top-5 z-[100] flex flex-col gap-2 md:right-7 md:top-7"
->
-  <button
-    type="button"
-    onClick={(event) => {
-      event.stopPropagation();
-      zoomIn();
-    }}
-    disabled={scale >= MAX_SCALE}
-    aria-label="Zoom in"
-    className="flex h-11 w-11 items-center justify-center rounded-full bg-black text-xl font-medium text-white shadow-xl transition hover:bg-neutral-800 disabled:cursor-not-allowed disabled:opacity-40"
-  >
-    +
-  </button>
+        <div
+          data-map-control
+          onPointerDown={(event) =>
+            event.stopPropagation()
+          }
+          onPointerMove={(event) =>
+            event.stopPropagation()
+          }
+          className="absolute right-5 top-5 z-[100] flex flex-col gap-2 md:right-7 md:top-7"
+        >
+          <button
+            type="button"
+            onClick={(event) => {
+              event.stopPropagation();
+              zoomIn();
+            }}
+            disabled={scale >= MAX_SCALE}
+            aria-label="Zoom in"
+            className="flex h-11 w-11 items-center justify-center rounded-full bg-black text-xl font-medium text-white shadow-xl transition hover:bg-neutral-800 disabled:cursor-not-allowed disabled:opacity-40"
+          >
+            +
+          </button>
 
-  <button
-    type="button"
-    onClick={(event) => {
-      event.stopPropagation();
-      zoomOut();
-    }}
-    disabled={scale <= MIN_SCALE}
-    aria-label="Zoom out"
-    className="flex h-11 w-11 items-center justify-center rounded-full bg-black text-xl font-medium text-white shadow-xl transition hover:bg-neutral-800 disabled:cursor-not-allowed disabled:opacity-40"
-  >
-    −
-  </button>
+          <button
+            type="button"
+            onClick={(event) => {
+              event.stopPropagation();
+              zoomOut();
+            }}
+            disabled={scale <= MIN_SCALE}
+            aria-label="Zoom out"
+            className="flex h-11 w-11 items-center justify-center rounded-full bg-black text-xl font-medium text-white shadow-xl transition hover:bg-neutral-800 disabled:cursor-not-allowed disabled:opacity-40"
+          >
+            −
+          </button>
 
-  <button
-    type="button"
-    onClick={(event) => {
-      event.stopPropagation();
-      resetView();
-    }}
-    disabled={
-      scale === 1 &&
-      position.x === 0 &&
-      position.y === 0
-    }
-    className="rounded-full bg-white px-3 py-2 text-[10px] font-semibold uppercase tracking-[0.12em] text-black shadow-xl disabled:cursor-not-allowed disabled:opacity-50"
-  >
-    Reset
-  </button>
-</div>
+          <button
+            type="button"
+            onClick={(event) => {
+              event.stopPropagation();
+              resetView();
+            }}
+            disabled={
+              scale === 1 &&
+              position.x === 0 &&
+              position.y === 0
+            }
+            className="rounded-full bg-white px-3 py-2 text-[10px] font-semibold uppercase tracking-[0.12em] text-black shadow-xl disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            Reset
+          </button>
+        </div>
 
         {/* SCALE */}
         {scale > 1 && (
@@ -320,13 +412,13 @@ export default function MasterplanExplorer({
 
             <div>
               <p className="text-xs font-medium">
-                Explore the clusters
+                {modeLabel}
               </p>
 
               <p className="mt-0.5 text-[10px] text-white/50">
                 {scale > 1
                   ? "Drag to move around the masterplan"
-                  : "Hover a marker or zoom in"}
+                  : modeDescription}
               </p>
             </div>
           </div>

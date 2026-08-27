@@ -10,6 +10,8 @@ import {
 } from "react";
 import { createClient } from "@/lib/supabase/client";
 
+type CalibrationMode = "clusters" | "amenities";
+
 type Cluster = {
   id: string;
   name: string;
@@ -17,6 +19,18 @@ type Cluster = {
   map_x: number | null;
   map_y: number | null;
   display_order: number | null;
+};
+
+type Amenity = {
+  id: string;
+  name: string;
+  slug: string;
+  category: string | null;
+  icon: string | null;
+  map_x: number | null;
+  map_y: number | null;
+  featured: boolean | null;
+  published: boolean | null;
 };
 
 type MasterplanSettings = {
@@ -30,28 +44,39 @@ type MasterplanSettings = {
 type Props = {
   communityId: string;
   initialClusters: Cluster[];
+  initialAmenities: Amenity[];
   initialSettings: MasterplanSettings;
 };
 
 export default function MapCalibrationClient({
   communityId,
   initialClusters,
+  initialAmenities,
   initialSettings,
 }: Props) {
   const supabase = createClient();
 
   const mapRef = useRef<HTMLDivElement | null>(null);
 
+  const [mode, setMode] =
+    useState<CalibrationMode>("clusters");
+
   const [clusters, setClusters] =
     useState<Cluster[]>(initialClusters);
+
+  const [amenities, setAmenities] =
+    useState<Amenity[]>(initialAmenities);
 
   const [settings, setSettings] =
     useState<MasterplanSettings>(
       initialSettings
     );
 
-  const [selectedId, setSelectedId] =
+  const [selectedClusterId, setSelectedClusterId] =
     useState(initialClusters[0]?.id ?? "");
+
+  const [selectedAmenityId, setSelectedAmenityId] =
+    useState(initialAmenities[0]?.id ?? "");
 
   const [showLabels, setShowLabels] =
     useState(true);
@@ -73,32 +98,38 @@ export default function MapCalibrationClient({
   const [dragging, setDragging] =
     useState(false);
 
+  const activeItems = mode === "clusters"
+    ? clusters
+    : amenities;
+
+  const selectedId = mode === "clusters"
+    ? selectedClusterId
+    : selectedAmenityId;
+
   const selectedIndex = useMemo(
     () =>
-      clusters.findIndex(
-        (cluster) =>
-          cluster.id === selectedId
+      activeItems.findIndex(
+        (item) => item.id === selectedId
       ),
-    [clusters, selectedId]
+    [activeItems, selectedId]
   );
 
-  const selectedCluster = useMemo(
+  const selectedItem = useMemo(
     () =>
-      clusters.find(
-        (cluster) =>
-          cluster.id === selectedId
+      activeItems.find(
+        (item) => item.id === selectedId
       ) ?? null,
-    [clusters, selectedId]
+    [activeItems, selectedId]
   );
 
   const mappedCount = useMemo(
     () =>
-      clusters.filter(
-        (cluster) =>
-          cluster.map_x !== null &&
-          cluster.map_y !== null
+      activeItems.filter(
+        (item) =>
+          item.map_x !== null &&
+          item.map_y !== null
       ).length,
-    [clusters]
+    [activeItems]
   );
 
   const liveImage =
@@ -113,11 +144,24 @@ export default function MapCalibrationClient({
     ? referenceImage
     : liveImage;
 
+  const modeLabel =
+    mode === "clusters"
+      ? "Cluster"
+      : "Amenity";
+
+  function setCurrentSelectedId(id: string) {
+    if (mode === "clusters") {
+      setSelectedClusterId(id);
+    } else {
+      setSelectedAmenityId(id);
+    }
+  }
+
   function updateSelectedPosition(
     x: number,
     y: number
   ) {
-    if (!selectedCluster) return;
+    if (!selectedItem) return;
 
     const safeX = Math.min(
       100,
@@ -129,21 +173,39 @@ export default function MapCalibrationClient({
       Math.max(0, y)
     );
 
-    setClusters((current) =>
-      current.map((cluster) =>
-        cluster.id === selectedCluster.id
-          ? {
-              ...cluster,
-              map_x: Number(
-                safeX.toFixed(2)
-              ),
-              map_y: Number(
-                safeY.toFixed(2)
-              ),
-            }
-          : cluster
-      )
-    );
+    if (mode === "clusters") {
+      setClusters((current) =>
+        current.map((cluster) =>
+          cluster.id === selectedItem.id
+            ? {
+                ...cluster,
+                map_x: Number(
+                  safeX.toFixed(2)
+                ),
+                map_y: Number(
+                  safeY.toFixed(2)
+                ),
+              }
+            : cluster
+        )
+      );
+    } else {
+      setAmenities((current) =>
+        current.map((amenity) =>
+          amenity.id === selectedItem.id
+            ? {
+                ...amenity,
+                map_x: Number(
+                  safeX.toFixed(2)
+                ),
+                map_y: Number(
+                  safeY.toFixed(2)
+                ),
+              }
+            : amenity
+        )
+      );
+    }
 
     setMessage("");
   }
@@ -172,14 +234,14 @@ export default function MapCalibrationClient({
   function handleMapPointerDown(
     event: ReactPointerEvent<HTMLDivElement>
   ) {
-    if (!selectedCluster) return;
+    if (!selectedItem) return;
 
     const target =
       event.target as HTMLElement;
 
     if (
       target.closest(
-        "[data-cluster-marker]"
+        "[data-calibration-marker]"
       )
     ) {
       return;
@@ -239,47 +301,55 @@ export default function MapCalibrationClient({
     }
   }
 
-  function selectPreviousCluster() {
-    if (clusters.length === 0) return;
+  function selectPreviousItem() {
+    if (activeItems.length === 0) return;
 
     const newIndex =
       selectedIndex <= 0
-        ? clusters.length - 1
+        ? activeItems.length - 1
         : selectedIndex - 1;
 
-    setSelectedId(
-      clusters[newIndex].id
+    setCurrentSelectedId(
+      activeItems[newIndex].id
     );
 
     setMessage("");
   }
 
-  function selectNextCluster() {
-    if (clusters.length === 0) return;
+  function selectNextItem() {
+    if (activeItems.length === 0) return;
 
     const newIndex =
       selectedIndex >=
-      clusters.length - 1
+      activeItems.length - 1
         ? 0
         : selectedIndex + 1;
 
-    setSelectedId(
-      clusters[newIndex].id
+    setCurrentSelectedId(
+      activeItems[newIndex].id
     );
 
     setMessage("");
+  }
+
+  function changeMode(
+    nextMode: CalibrationMode
+  ) {
+    setMode(nextMode);
+    setMessage("");
+    setDragging(false);
   }
 
   async function savePosition(
     moveNext = false
   ) {
     if (
-      !selectedCluster ||
-      selectedCluster.map_x === null ||
-      selectedCluster.map_y === null
+      !selectedItem ||
+      selectedItem.map_x === null ||
+      selectedItem.map_y === null
     ) {
       setMessage(
-        "Place the cluster on the map first."
+        `Place the ${modeLabel.toLowerCase()} on the map first.`
       );
 
       return;
@@ -288,52 +358,53 @@ export default function MapCalibrationClient({
     setSaving(true);
     setMessage("");
 
-    const clusterName =
-      selectedCluster.name;
+    const itemName = selectedItem.name;
 
     const { error } = await supabase
-      .from("clusters")
+      .from(
+        mode === "clusters"
+          ? "clusters"
+          : "amenities"
+      )
       .update({
-        map_x: selectedCluster.map_x,
-        map_y: selectedCluster.map_y,
+        map_x: selectedItem.map_x,
+        map_y: selectedItem.map_y,
       })
-      .eq("id", selectedCluster.id);
+      .eq("id", selectedItem.id);
 
     setSaving(false);
 
     if (error) {
       console.error(
-        "Map position save error:",
+        `${modeLabel} map position save error:`,
         error
       );
 
       setMessage(
-        "Could not save the position."
+        `Could not save the ${modeLabel.toLowerCase()} position.`
       );
 
       return;
     }
 
     if (moveNext) {
-      setMessage(
-        `${clusterName} saved.`
-      );
+      setMessage(`${itemName} saved.`);
 
       const newIndex =
         selectedIndex >=
-        clusters.length - 1
+        activeItems.length - 1
           ? 0
           : selectedIndex + 1;
 
-      setSelectedId(
-        clusters[newIndex].id
+      setCurrentSelectedId(
+        activeItems[newIndex].id
       );
 
       return;
     }
 
     setMessage(
-      `${clusterName} saved successfully.`
+      `${itemName} saved successfully.`
     );
   }
 
@@ -502,7 +573,7 @@ export default function MapCalibrationClient({
             <p className="mt-3 max-w-2xl text-sm leading-6 text-neutral-600">
               The live image is used by visitors.
               The reference image is used here
-              while positioning cluster markers.
+              while positioning clusters and amenities.
             </p>
           </div>
 
@@ -620,7 +691,7 @@ export default function MapCalibrationClient({
       </section>
 
       {/* CALIBRATION */}
-      <section className="grid gap-6 px-6 py-8 md:px-10 xl:grid-cols-[340px_minmax(0,1fr)]">
+      <section className="grid gap-6 px-6 py-8 md:px-10 xl:grid-cols-[360px_minmax(0,1fr)]">
         <aside className="rounded-[2rem] bg-white p-6">
           <div className="flex items-center justify-between">
             <p className="text-xs font-medium uppercase tracking-[0.22em] text-neutral-400">
@@ -628,20 +699,60 @@ export default function MapCalibrationClient({
             </p>
 
             <span className="rounded-full bg-neutral-100 px-3 py-1 text-xs font-medium">
-              {selectedIndex + 1} /{" "}
-              {clusters.length}
+              {activeItems.length
+                ? selectedIndex + 1
+                : 0}{" "}
+              / {activeItems.length}
             </span>
           </div>
 
+          {/* CALIBRATION MODE */}
           <div className="mt-5">
+            <p className="text-sm font-medium">
+              Calibrate
+            </p>
+
+            <div className="mt-2 grid grid-cols-2 gap-2 rounded-2xl bg-neutral-100 p-1">
+              <button
+                type="button"
+                onClick={() =>
+                  changeMode("clusters")
+                }
+                className={`rounded-xl px-4 py-3 text-sm font-semibold transition ${
+                  mode === "clusters"
+                    ? "bg-black text-white shadow"
+                    : "text-neutral-500 hover:text-black"
+                }`}
+              >
+                Clusters
+              </button>
+
+              <button
+                type="button"
+                onClick={() =>
+                  changeMode("amenities")
+                }
+                className={`rounded-xl px-4 py-3 text-sm font-semibold transition ${
+                  mode === "amenities"
+                    ? "bg-black text-white shadow"
+                    : "text-neutral-500 hover:text-black"
+                }`}
+              >
+                Amenities
+              </button>
+            </div>
+          </div>
+
+          {/* PROGRESS */}
+          <div className="mt-6">
             <div className="flex items-center justify-between text-xs text-neutral-500">
               <span>
-                Cluster positions
+                {modeLabel} positions
               </span>
 
               <span>
                 {mappedCount}/
-                {clusters.length}
+                {activeItems.length}
               </span>
             </div>
 
@@ -650,9 +761,9 @@ export default function MapCalibrationClient({
                 className="h-full rounded-full bg-black transition-all"
                 style={{
                   width: `${
-                    clusters.length
+                    activeItems.length
                       ? (mappedCount /
-                          clusters.length) *
+                          activeItems.length) *
                         100
                       : 0
                   }%`,
@@ -662,38 +773,47 @@ export default function MapCalibrationClient({
           </div>
 
           <label className="mt-7 block text-sm font-medium">
-            Select cluster
+            Select {modeLabel.toLowerCase()}
           </label>
 
-          <select
-            value={selectedId}
-            onChange={(event) => {
-              setSelectedId(
-                event.target.value
-              );
-              setMessage("");
-            }}
-            className="mt-2 w-full rounded-2xl border border-neutral-300 bg-white px-4 py-3"
-          >
-            {clusters.map(
-              (cluster) => (
+          {activeItems.length ? (
+            <select
+              value={selectedId}
+              onChange={(event) => {
+                setCurrentSelectedId(
+                  event.target.value
+                );
+                setMessage("");
+              }}
+              className="mt-2 w-full rounded-2xl border border-neutral-300 bg-white px-4 py-3"
+            >
+              {activeItems.map((item) => (
                 <option
-                  key={cluster.id}
-                  value={cluster.id}
+                  key={item.id}
+                  value={item.id}
                 >
-                  {cluster.name}
+                  {mode === "amenities" &&
+                  "category" in item &&
+                  item.category
+                    ? `${item.name} — ${item.category}`
+                    : item.name}
                 </option>
-              )
-            )}
-          </select>
+              ))}
+            </select>
+          ) : (
+            <div className="mt-2 rounded-2xl bg-neutral-100 p-4 text-sm text-neutral-500">
+              No {mode} found for DAMAC Hills 2.
+            </div>
+          )}
 
           <div className="mt-3 grid grid-cols-2 gap-2">
             <button
               type="button"
               onClick={
-                selectPreviousCluster
+                selectPreviousItem
               }
-              className="rounded-2xl border border-neutral-300 px-4 py-3 text-sm font-medium"
+              disabled={!activeItems.length}
+              className="rounded-2xl border border-neutral-300 px-4 py-3 text-sm font-medium disabled:opacity-40"
             >
               ← Previous
             </button>
@@ -701,9 +821,10 @@ export default function MapCalibrationClient({
             <button
               type="button"
               onClick={
-                selectNextCluster
+                selectNextItem
               }
-              className="rounded-2xl border border-neutral-300 px-4 py-3 text-sm font-medium"
+              disabled={!activeItems.length}
+              className="rounded-2xl border border-neutral-300 px-4 py-3 text-sm font-medium disabled:opacity-40"
             >
               Next →
             </button>
@@ -747,13 +868,22 @@ export default function MapCalibrationClient({
 
           <div className="mt-8 rounded-2xl bg-neutral-100 p-5">
             <p className="text-sm text-neutral-500">
-              Selected cluster
+              Selected {modeLabel.toLowerCase()}
             </p>
 
             <p className="mt-1 text-2xl font-semibold">
-              {selectedCluster?.name ??
+              {selectedItem?.name ??
                 "None"}
             </p>
+
+            {mode === "amenities" &&
+              selectedItem &&
+              "category" in selectedItem && (
+                <p className="mt-1 text-xs text-neutral-500">
+                  {selectedItem.category ||
+                    "Uncategorized amenity"}
+                </p>
+              )}
 
             <div className="mt-5 grid grid-cols-2 gap-3">
               <div className="rounded-xl bg-white p-3">
@@ -762,7 +892,7 @@ export default function MapCalibrationClient({
                 </p>
 
                 <p className="mt-1 font-semibold">
-                  {selectedCluster?.map_x ??
+                  {selectedItem?.map_x ??
                     "—"}
                   %
                 </p>
@@ -774,7 +904,7 @@ export default function MapCalibrationClient({
                 </p>
 
                 <p className="mt-1 font-semibold">
-                  {selectedCluster?.map_y ??
+                  {selectedItem?.map_y ??
                     "—"}
                   %
                 </p>
@@ -787,7 +917,10 @@ export default function MapCalibrationClient({
             onClick={() =>
               savePosition(false)
             }
-            disabled={saving}
+            disabled={
+              saving ||
+              !selectedItem
+            }
             className="mt-6 w-full rounded-full border border-black px-5 py-4 text-sm font-semibold disabled:opacity-50"
           >
             {saving
@@ -800,7 +933,10 @@ export default function MapCalibrationClient({
             onClick={() =>
               savePosition(true)
             }
-            disabled={saving}
+            disabled={
+              saving ||
+              !selectedItem
+            }
             className="mt-3 w-full rounded-full bg-black px-5 py-4 text-sm font-semibold text-white disabled:opacity-50"
           >
             {saving
@@ -825,11 +961,17 @@ export default function MapCalibrationClient({
             </p>
 
             <p className="mt-1 text-xs text-neutral-500">
-              Click anywhere to position{" "}
-              <strong>
-                {selectedCluster?.name}
-              </strong>
-              .
+              {selectedItem ? (
+                <>
+                  Click anywhere to position{" "}
+                  <strong>
+                    {selectedItem.name}
+                  </strong>
+                  .
+                </>
+              ) : (
+                `Add ${mode} before calibrating this layer.`
+              )}
             </p>
           </div>
 
@@ -848,50 +990,51 @@ export default function MapCalibrationClient({
                 className="h-auto w-full select-none"
               />
 
-              {clusters.map(
-                (cluster) => {
-                  if (
-                    cluster.map_x ===
-                      null ||
-                    cluster.map_y ===
-                      null
-                  ) {
-                    return null;
-                  }
-
-                  const selected =
-                    cluster.id ===
-                    selectedId;
-
-                  return (
-                    <div
-                      key={cluster.id}
-                      className="pointer-events-none absolute -translate-x-1/2 -translate-y-1/2"
-                      style={{
-                        left: `${cluster.map_x}%`,
-                        top: `${cluster.map_y}%`,
-                      }}
-                    >
-                      <div
-                        className={`rounded-full border-2 border-white shadow ${
-                          selected
-                            ? "h-4 w-4 bg-red-600"
-                            : "h-2.5 w-2.5 bg-black/55"
-                        }`}
-                      />
-                    </div>
-                  );
+              {/* SAVED MARKERS FOR ACTIVE MODE */}
+              {activeItems.map((item) => {
+                if (
+                  item.map_x === null ||
+                  item.map_y === null
+                ) {
+                  return null;
                 }
-              )}
 
-              {selectedCluster &&
-                selectedCluster.map_x !==
+                const selected =
+                  item.id === selectedId;
+
+                return (
+                  <div
+                    key={item.id}
+                    className="pointer-events-none absolute -translate-x-1/2 -translate-y-1/2"
+                    style={{
+                      left: `${item.map_x}%`,
+                      top: `${item.map_y}%`,
+                    }}
+                  >
+                    <div
+                      className={`rounded-full border-2 border-white shadow ${
+                        selected
+                          ? mode === "clusters"
+                            ? "h-4 w-4 bg-red-600"
+                            : "h-4 w-4 bg-blue-600"
+                          : mode === "clusters"
+                            ? "h-2.5 w-2.5 bg-black/55"
+                            : "h-2.5 w-2.5 bg-blue-700/60"
+                      }`}
+                    />
+                  </div>
+                );
+              })}
+
+              {/* ACTIVE MARKER */}
+              {selectedItem &&
+                selectedItem.map_x !==
                   null &&
-                selectedCluster.map_y !==
+                selectedItem.map_y !==
                   null && (
                   <button
                     type="button"
-                    data-cluster-marker
+                    data-calibration-marker
                     onPointerDown={
                       handleMarkerPointerDown
                     }
@@ -906,17 +1049,30 @@ export default function MapCalibrationClient({
                     }
                     className="absolute z-30 -translate-x-1/2 -translate-y-1/2 cursor-grab touch-none active:cursor-grabbing"
                     style={{
-                      left: `${selectedCluster.map_x}%`,
-                      top: `${selectedCluster.map_y}%`,
+                      left: `${selectedItem.map_x}%`,
+                      top: `${selectedItem.map_y}%`,
                     }}
+                    aria-label={`Move ${selectedItem.name}`}
                   >
                     <div className="relative">
-                      <div className="absolute left-1/2 top-1/2 h-12 w-12 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-white/80 bg-red-500/25" />
+                      <div
+                        className={`absolute left-1/2 top-1/2 h-12 w-12 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-white/80 ${
+                          mode === "clusters"
+                            ? "bg-red-500/25"
+                            : "bg-blue-500/25"
+                        }`}
+                      />
 
-                      <div className="relative h-6 w-6 rounded-full border-4 border-white bg-red-600 shadow-xl" />
+                      <div
+                        className={`relative h-6 w-6 rounded-full border-4 border-white shadow-xl ${
+                          mode === "clusters"
+                            ? "bg-red-600"
+                            : "bg-blue-600"
+                        }`}
+                      />
 
                       <div className="pointer-events-none absolute left-1/2 top-9 -translate-x-1/2 whitespace-nowrap rounded-full bg-black px-3 py-2 text-xs font-semibold text-white shadow-xl">
-                        {selectedCluster.name}
+                        {selectedItem.name}
                       </div>
                     </div>
                   </button>

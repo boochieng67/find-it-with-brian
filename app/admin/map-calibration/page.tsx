@@ -35,6 +35,27 @@ export default async function MapCalibrationPage() {
     console.error("Calibration clusters error:", clustersError);
   }
 
+  const { data: amenities, error: amenitiesError } = await supabase
+    .from("amenities")
+    .select(`
+      id,
+      name,
+      slug,
+      category,
+      icon,
+      map_x,
+      map_y,
+      featured,
+      published
+    `)
+    .eq("community_id", community.id)
+    .order("category", { ascending: true })
+    .order("name", { ascending: true });
+
+  if (amenitiesError) {
+    console.error("Calibration amenities error:", amenitiesError);
+  }
+
   const { data: masterplanSettings, error: settingsError } =
     await supabase
       .from("masterplan_settings")
@@ -60,6 +81,7 @@ export default async function MapCalibrationPage() {
     <MapCalibrationClient
       communityId={community.id}
       initialClusters={clusters ?? []}
+      initialAmenities={amenities ?? []}
       initialSettings={{
         id: masterplanSettings?.id ?? null,
         live_image_url:
